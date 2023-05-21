@@ -484,6 +484,12 @@ print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
 
 This process is then repeated for the ESN:
 
+The structure of the ESN model is defined through a class named EchoStateNetwork. This model includes a reservoir with 50 neurons. The reservoir weights are scaled by a spectral radius, which controls the dynamical richness of the reservoir.
+
+The input weights project the three-dimensional input to the reservoir, while the output weights map the reservoir state back to the three-dimensional output. The activation function is the hyperbolic tangent (tanh).
+
+During the forward pass, the model iterates over each time step, updating the reservoir state with the current input and the previous reservoir state. The final output is computed from the last reservoir state.
+
 ```
 # Define the ESN model
 class EchoStateNetwork(nn.Module):
@@ -533,11 +539,7 @@ class EchoStateNetwork(nn.Module):
         return output
 ```
 
-The structure of the ESN model is defined through a class named EchoStateNetwork. This model includes a reservoir with 50 neurons. The reservoir weights are scaled by a spectral radius, which controls the dynamical richness of the reservoir.
-
-The input weights project the three-dimensional input to the reservoir, while the output weights map the reservoir state back to the three-dimensional output. The activation function is the hyperbolic tangent (tanh).
-
-During the forward pass, the model iterates over each time step, updating the reservoir state with the current input and the previous reservoir state. The final output is computed from the last reservoir state.
+After the model setup, the time span, initial conditions, and rho values for the Lorenz system are established. Then, the Lorenz equations are solved for these conditions, and the results are reshaped and concatenated into arrays suitable for training the ESN model.
 
 ```
 # Set up time span, initial conditions, and rho values
@@ -561,7 +563,7 @@ nn_input = np.concatenate(nn_input)
 nn_output = np.concatenate(nn_output)
 ```
 
-After the model setup, the time span, initial conditions, and rho values for the Lorenz system are established. Then, the Lorenz equations are solved for these conditions, and the results are reshaped and concatenated into arrays suitable for training the ESN model.
+The data is normalized, split into training and validation sets, and converted into PyTorch tensors. The loss function (MSE) and the optimizer (Adam) are defined, and the model is trained using the previously defined train function.
 
 ```
 # Normalize the data
@@ -597,7 +599,8 @@ autograd.set_detect_anomaly(True)
 # Train the model
 train(modelESN, optimizer, loss_fn, nn_input_train, nn_output_train, n_epochs=100)
 ```
-The data is normalized, split into training and validation sets, and converted into PyTorch tensors. The loss function (MSE) and the optimizer (Adam) are defined, and the model is trained using the previously defined train function.
+
+After training, the ESN model is evaluated on the validation set, and the Mean Squared Error of the predictions is computed. The model is then used to forecast the dynamics of the Lorenz system for the new rho values of 17 and 35. The Mean Squared Error of these predictions gives an estimate of the model's predictive performance under unseen conditions.
 
 ```
 # Evaluate the model on the validation set
@@ -640,4 +643,4 @@ mse_test = loss_fn(predictions, test_output)
 print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
 ```
 
-After training, the ESN model is evaluated on the validation set, and the Mean Squared Error of the predictions is computed. The model is then used to forecast the dynamics of the Lorenz system for the new rho values of 17 and 35. The Mean Squared Error of these predictions gives an estimate of the model's predictive performance under unseen conditions.
+### Sec. IV. Computational Results
