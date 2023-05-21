@@ -644,3 +644,47 @@ print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
 ```
 
 ### Sec. IV. Computational Results
+
+![image](https://github.com/NajibHaidar/Different-NNs-on-Lorenz-Equations/assets/116219100/182b1a7a-1a1a-4694-bcb1-ca55b4817a39)
+*Figure 1: Bar Graph Comparison of Different Model's Validation and Test MSE*
+
+To analyze the performance of the different models, it's important to understand their structures and how they handle time series data.
+
+1. **FFNN (Feedforward Neural Network)**: Feedforward neural networks are the simplest form of artificial neural networks. They map inputs to outputs. They do not have a temporal dimension, meaning they do not have any knowledge about the sequence of data. This may lead to less accurate predictions for complex time series data, especially when there is significant temporal dependency.
+
+2. **LSTM (Long Short-Term Memory)**: LSTMs are a type of recurrent neural network (RNN) designed to remember long-term dependencies in sequence data. They are well-suited for time series prediction tasks. However, they can sometimes be complex to train, and their performance may vary based on the problem complexity, amount of training data, and hyperparameter selection.
+
+3. **RNN (Recurrent Neural Network)**: RNNs are designed to use their internal state (memory) to process sequences of inputs. This makes them good for use with time series data. However, traditional RNNs struggle with the problem of vanishing gradients, making them less effective at capturing long-term dependencies in the data.
+
+4. **ESN (Echo State Network)**: ESNs are a type of recurrent neural network with a sparsely connected hidden layer (the "reservoir"). The special characteristic of ESN is that only the output weights are trained, leaving the reservoir weights unmodified. ESNs can in principle capture long-term dependencies thanks to their recurrent connections, but this is highly dependent on the correct tuning of their hyperparameters. 
+
+Given these considerations, we can make the following observations about the results:
+
+- **FFNN**'s performance is relatively good. It seems that the time series problem at hand may not involve significant temporal dependencies, allowing the FFNN to perform well despite its lack of temporal modeling capabilities.
+  
+- **LSTM** performs worse than the FFNN and RNN. This could be because the LSTM's ability to capture long-term dependencies is not beneficial for this specific dataset, or it might be due to insufficient training or improper hyperparameter settings.
+
+- **RNN** has the best performance, suggesting that it's able to capture the necessary temporal dependencies in the data efficiently.
+
+- **ESN** performs significantly worse than the other models. This could be due to the "reservoir" not being properly tuned to capture the dynamics of the dataset. Additionally, ESN's performance is highly dependent on the initial state of the reservoir and the input data, which might not be optimal in this case.
+
+It's also worth mentioning that the choice of loss function (MSE in this case) and the amount and quality of data can greatly affect the results. A different loss function might lead to different results, and more or better-quality data could improve the performance of all models.
+
+### Sec. V. Summary and Conclusions
+In this study, we explored the application of various neural network models, namely Feedforward Neural Networks (FFNN), Long Short-Term Memory networks (LSTM), Recurrent Neural Networks (RNN), and Echo State Networks (ESN) to predict the evolution of the Lorenz system, a well-known chaotic system. The choice of these models stems from their widespread use in the analysis of time series data and their varying approaches to sequence prediction.
+
+Theoretical considerations suggest that recurrent architectures like LSTM, RNN, and ESN should, in principle, outperform FFNN due to their ability to capture temporal dependencies in the data. However, our computational results painted a slightly different picture. 
+
+FFNN, which has no inherent temporal modeling capability, performed relatively well. This outcome suggests that for this particular problem, substantial long-term dependencies may not be present or necessary to predict accurately. 
+
+Surprisingly, LSTM did not perform as well as expected. Despite their theoretical advantage of capturing long-term dependencies, it appears that this feature did not contribute significantly to the problem at hand. Alternatively, this might indicate that the LSTM model may require further tuning or more extensive training.
+
+RNNs showed the best performance among all models, indicating their efficiency in capturing the necessary short-term dependencies in the data. 
+
+ESN, however, performed significantly worse. Given its unique architecture and reliance on the "reservoir" for dynamics modeling, the poor performance of ESN suggests that the reservoir was not aptly tuned to capture the Lorenz system's dynamics. 
+
+These findings underscore the significance of model choice when dealing with time series prediction tasks. It is not always the case that more complex models, such as LSTM or ESN, will outperform simpler ones like FFNN or RNN. Understanding the underlying characteristics of the data and how different models handle these characteristics is crucial for effective model selection.
+
+Future work could involve the exploration of more advanced and recently developed models for time series prediction, such as Transformer models, which have shown promising results in other domains. Moreover, refining the tuning process for models like ESN could potentially enhance their performance on such tasks. 
+
+In conclusion, this study emphasizes the nuanced performance of various neural network models in predicting complex, chaotic systems.
