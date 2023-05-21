@@ -78,6 +78,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import torch.autograd as autograd
 ```
 
 The first part of the code defines the structure of the FFNN model, with a class named `FeedForwardNN`. This model contains three fully connected layers (also known as linear layers), each followed by a ReLU (Rectified Linear Unit) activation function, which is common in deep learning models. This is followed by an output layer, which does not apply any activation function as this is a regression task. The model is initialized with the statement `modelNN = FeedForwardNN()`.
