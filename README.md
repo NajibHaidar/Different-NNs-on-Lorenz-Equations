@@ -41,9 +41,10 @@ Then we present our findings, including a comparison of the performance of the d
 
 The Lorenz system is a set of three differential equations originally introduced by Edward Lorenz in 1963. They are used to model atmospheric convection and are often cited as a prime example of how complex, chaotic behavior can arise from non-linear dynamical equations. Here are the equations:
 
-dx/dt = σ(y - x)
-dy/dt = x(ρ - z) - y
-dz/dt = xy - βz
+1. **dx/dt = σ(y - x)**
+2. **dy/dt = x(ρ - z) - y**
+3. **dz/dt = xy - βz**
+
 The system is characterized by three parameters: σ (Prandtl number), ρ (Rayleigh number), and β. When ρ exceeds a critical value (approximately 24.74), the system begins to exhibit chaotic behavior. This means that while the system is deterministic, slight changes to initial conditions can result in vastly different outcomes, making long-term prediction extremely challenging. This sensitivity to initial conditions is known as the butterfly effect.
 
 #### *Neural Networks*
@@ -63,3 +64,6 @@ The ability to forecast accurately from nonlinear dynamical systems, like the Lo
 Neural networks, with their ability to learn from the underlying data and capture non-linear relationships, offer a promising alternative. However, different types of neural networks offer different advantages and potential pitfalls. Feed-forward networks, for instance, are straightforward to understand and implement, but might struggle with temporal data where past states influence future ones. On the other hand, networks like LSTMs or RNNs, that can use their internal state (memory) to process sequences of inputs, are better suited to these tasks.
 
 In conclusion, understanding these different architectures allows us to make an informed choice about which type of neural network to use, depending on the specific requirements of the problem at hand.
+
+### Sec. III. Algorithm Implementation and Development
+
