@@ -67,3 +67,577 @@ In conclusion, understanding these different architectures allows us to make an 
 
 ### Sec. III. Algorithm Implementation and Development
 
+We begin by importing the necessary libraries:
+
+```
+import torch
+import torch.nn as nn
+import numpy as np
+from scipy import integrate
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import torch.optim as optim
+import matplotlib.pyplot as plt
+```
+
+The first part of the code defines the structure of the FFNN model, with a class named `FeedForwardNN`. This model contains three fully connected layers (also known as linear layers), each followed by a ReLU (Rectified Linear Unit) activation function, which is common in deep learning models. This is followed by an output layer, which does not apply any activation function as this is a regression task. The model is initialized with the statement `modelNN = FeedForwardNN()`.
+
+```
+class FeedForwardNN(nn.Module):
+    def __init__(self):
+        super(FeedForwardNN, self).__init__()
+        self.fc1 = nn.Linear(3, 10)  # input layer
+        self.fc2 = nn.Linear(10, 10)  # hidden layer 1
+        self.fc3 = nn.Linear(10, 10)  # hidden layer 2
+        self.fc4 = nn.Linear(10, 3)  # output layer
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)  # no activation function for the output layer in a regression task
+        return x
+
+modelNN = FeedForwardNN()
+```
+
+Next, the Lorenz system is defined as a function named `lorenz_deriv`, which takes the current state (`x_y_z`) and time (`t0`) as arguments and returns the derivatives of `x`, `y`, and `z` according to the Lorenz equations.
+
+Subsequent blocks of code set up the initial conditions, time span, and rho values for the Lorenz system. The function `odeint` from the `scipy.integrate` module is used to numerically integrate the Lorenz equations over time, for different rho values. The resulting time series are reshaped and concatenated into arrays suitable for use as inputs and targets for the neural network.
+
+The generated datasets are then normalized using the `StandardScaler` from `sklearn.preprocessing` module. Normalization is an important pre-processing step that makes the training process more stable and efficient.
+
+The code then proceeds to split the dataset into a training set and a validation set using `train_test_split` function from `sklearn.model_selection` module. The split datasets are converted into PyTorch tensors, which can be used directly in the training process.
+
+```
+# Define the Lorenz system
+def lorenz_deriv(x_y_z, t0, sigma=10, beta=8/3, rho=28):
+    x, y, z = x_y_z
+    return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z]
+
+# Set up time span, initial conditions, and rho values
+dt = 0.01
+T = 8
+t = np.arange(0, T+dt, dt)
+np.random.seed(123)
+x0 = -15 + 30 * np.random.random((100, 3))
+rhos = [10, 28, 40]
+
+# Solve the Lorenz equations
+nn_input = []
+nn_output = []
+
+for rho in rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    nn_input.append(x_t[:, :-1, :].reshape(-1, 3))  # reshaping the array to the form (samples, features)
+    nn_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+nn_input = np.concatenate(nn_input)
+nn_output = np.concatenate(nn_output)
+
+# Normalize the data
+scaler_in = StandardScaler()
+scaler_out = StandardScaler()
+nn_input = scaler_in.fit_transform(nn_input)
+nn_output = scaler_out.fit_transform(nn_output)
+
+# Split the dataset into a training set and a validation set
+nn_input_train, nn_input_val, nn_output_train, nn_output_val = train_test_split(nn_input, nn_output, test_size=0.2, random_state=42)
+
+# Convert to PyTorch tensors
+nn_input_train = torch.from_numpy(nn_input_train).float()
+nn_output_train = torch.from_numpy(nn_output_train).float()
+nn_input_val = torch.from_numpy(nn_input_val).float()
+nn_output_val = torch.from_numpy(nn_output_val).float()
+```
+
+The loss function (Mean Squared Error) and the optimizer (Adam) are defined in preparation for the training process. A helper function named `train` is defined to streamline the training process. This function takes the model, optimizer, loss function, inputs, and targets as arguments and trains the model for a specified number of epochs. The function runs the forward pass, computes the loss, performs backpropagation, and updates the weights in each epoch.
+
+The model is then evaluated on the validation set, and the Mean Squared Error of the predictions is calculated and printed.
+
+```
+# Define the loss function
+loss_fn = nn.MSELoss()
+
+# Define the optimizer
+optimizer = optim.Adam(modelNN.parameters(), lr=0.01)
+
+# Define a helper function for the training process
+def train(model, optimizer, loss_fn, inputs, targets, n_epochs=100):
+    model.train()
+    for epoch in range(n_epochs):
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_fn(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        if (epoch+1) % 20 == 0:
+            print(f"Epoch {epoch+1}/{n_epochs}, Loss: {loss.item()}")
+
+# Train the model
+train(modelNN, optimizer, loss_fn, nn_input_train, nn_output_train, n_epochs=100)
+
+# Evaluate the model on the validation set
+modelNN.eval()
+with torch.no_grad():
+    predictions = modelNN(nn_input_val)
+
+# Compute the Mean Squared Error of the predictions
+mse = loss_fn(predictions, nn_output_val)
+print(f"Mean Squared Error (MSE) on the validation set: {mse.item()}")
+```
+
+Lastly, the script predicts the dynamics of the Lorenz system for two new rho values (17 and 35) not seen during training. The predictions are evaluated using the Mean Squared Error, providing an indication of how well the model can generalize to unseen conditions.
+
+```
+# Solve the Lorenz equations for rho = 17 and rho = 35
+test_rhos = [17, 35]
+test_input = []
+test_output = []
+
+for rho in test_rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    test_input.append(x_t[:, :-1, :].reshape(-1, 3))  
+    test_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+test_input = np.concatenate(test_input)
+test_output = np.concatenate(test_output)
+
+# Normalize the test data
+test_input = scaler_in.transform(test_input)
+test_output = scaler_out.transform(test_output)
+
+# Convert to PyTorch tensors
+test_input = torch.from_numpy(test_input).float()
+test_output = torch.from_numpy(test_output).float()
+
+# Use the trained model to predict the states at rho = 17 and rho = 35
+modelNN.eval()
+with torch.no_grad():
+    predictions = modelNN(test_input)
+
+# Compute the Mean Squared Error of the predictions
+mse_test = loss_fn(predictions, test_output)
+print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
+```
+
+Next, we began comparing the performance of the feed forward neural network to other neural networks. Firstly, LSTM:
+
+The structure of the LSTM model is defined through a class named LSTMModel. This model includes an LSTM layer with three inputs (corresponding to the three dimensions of the Lorenz system), ten hidden units, and one layer. The LSTM layer is followed by a fully connected layer, which reduces the ten-dimensional output of the LSTM to three dimensions. The forward function orchestrates the passage of input data through these layers.
+
+```
+class LSTMModel(nn.Module):
+    def __init__(self):
+        super(LSTMModel, self).__init__()
+        self.lstm = nn.LSTM(input_size=3, hidden_size=10, num_layers=1)
+        self.fc = nn.Linear(in_features=10, out_features=3)
+        
+    def forward(self, x):
+        x, _ = self.lstm(x)
+        x = self.fc(x)
+        return x
+
+modelLSTM = LSTMModel()
+```
+
+Following the model setup, the time span, initial conditions, and rho values for the Lorenz system are set, much like in the previous FFNN model. The Lorenz equations are then solved for these conditions and the results reshaped and concatenated into arrays suitable for training the LSTM model.
+
+```
+# Set up time span, initial conditions, and rho values
+dt = 0.01
+T = 8
+t = np.arange(0, T+dt, dt)
+np.random.seed(123)
+x0 = -15 + 30 * np.random.random((100, 3))
+rhos = [10, 28, 40]
+```
+
+The LSTM model requires an additional reshaping step, transforming the input data into a 3-dimensional array with dimensions corresponding to (samples, time steps, features). This is because LSTMs expect input in this format, with separate dimensions for the samples in the batch, the time steps in each sample, and the features at each time step.
+
+```
+# Solve the Lorenz equations
+nn_input_lstm = []
+nn_output_lstm = []
+
+for rho in rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    nn_input_lstm.append(x_t[:, :-1, :].reshape(-1, 3))  # reshaping the array to the form (samples, features)
+    nn_output_lstm.append(x_t[:, 1:, :].reshape(-1, 3))
+
+nn_input_lstm = np.concatenate(nn_input_lstm)
+nn_output_lstm = np.concatenate(nn_output_lstm)
+```
+
+We then proceeds with the normalization, splitting the data, and transforming them into PyTorch tensors. The same loss function (MSE) and the optimizer (Adam) from the FFNN part are used for the LSTM model too.
+
+```
+# Normalize the data
+scaler_in_lstm = StandardScaler()
+scaler_out_lstm = StandardScaler()
+nn_input_lstm = scaler_in_lstm.fit_transform(nn_input_lstm)
+nn_output_lstm = scaler_out_lstm.fit_transform(nn_output_lstm)
+
+# Split the dataset into a training set and a validation set
+nn_input_lstm_train, nn_input_lstm_val, nn_output_lstm_train, nn_output_lstm_val = train_test_split(nn_input_lstm, nn_output_lstm, test_size=0.2, random_state=42)
+
+# Reshape the input data to be suitable for LSTM
+nn_input_lstm_train = nn_input_lstm_train.reshape(-1, 1, 3)
+nn_input_lstm_val = nn_input_lstm_val.reshape(-1, 1, 3)
+
+# Convert to PyTorch tensors
+nn_input_lstm_train = torch.from_numpy(nn_input_lstm_train).float()
+nn_output_lstm_train = torch.from_numpy(nn_output_lstm_train).float()
+nn_input_lstm_val = torch.from_numpy(nn_input_lstm_val).float()
+nn_output_lstm_val = torch.from_numpy(nn_output_lstm_val).float()
+
+# Define the loss function
+loss_fn_lstm = nn.MSELoss()
+
+# Define the optimizer
+optimizer_lstm = optim.Adam(modelLSTM.parameters(), lr=0.01)
+```
+
+Training is carried out using a helper function train_lstm, which is similar to the function used for FFNN but has a slight change to accommodate the output shape of LSTM. The .squeeze() function is used to remove the singleton dimension introduced by the LSTM output.
+
+```
+# Define a helper function for the training process
+def train_lstm(model, optimizer, loss_fn, inputs, targets, n_epochs=100):
+    model.train()
+    for epoch in range(n_epochs):
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_fn(outputs.squeeze(), targets)
+        loss.backward()
+        optimizer.step()
+        if (epoch+1) % 20 == 0:
+            print(f"Epoch {epoch+1}/{n_epochs}, Loss: {loss.item()}")
+
+# Train the LSTM model
+train_lstm(modelLSTM, optimizer_lstm, loss_fn_lstm, nn_input_lstm_train, nn_output_lstm_train, n_epochs=100)
+```
+
+After training, the LSTM model is evaluated on the validation set, and the Mean Squared Error of the predictions is computed. The model is then used to forecast the dynamics of the Lorenz system for the new rho values of 17 and 35. The Mean Squared Error of these predictions provides an estimate of how well the LSTM model can predict under unseen conditions.
+
+```
+# Evaluate the LSTM model on the validation set
+modelLSTM.eval()
+with torch.no_grad():
+    predictions_lstm = modelLSTM(nn_input_lstm_val)
+
+# Compute the Mean Squared Error of the predictions
+mse_lstm = loss_fn_lstm(predictions_lstm.squeeze(), nn_output_lstm_val)
+print(f"Mean Squared Error (MSE) on the validation set: {mse_lstm.item()}")
+
+# Solve the Lorenz equations for rho = 17 and rho = 35
+test_rhos = [17, 35]
+test_input_lstm = []
+test_output_lstm = []
+
+for rho in test_rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    test_input_lstm.append(x_t[:, :-1, :].reshape(-1, 3))  
+    test_output_lstm.append(x_t[:, 1:, :].reshape(-1, 3))
+
+test_input_lstm = np.concatenate(test_input_lstm)
+test_output_lstm = np.concatenate(test_output_lstm)
+
+# Normalize the test data
+test_input_lstm = scaler_in_lstm.transform(test_input_lstm)
+test_output_lstm = scaler_out_lstm.transform(test_output_lstm)
+
+# Reshape the input data to be suitable for LSTM
+test_input_lstm = test_input_lstm.reshape(-1, 1, 3)
+
+# Convert to PyTorch tensors
+test_input_lstm = torch.from_numpy(test_input_lstm).float()
+test_output_lstm = torch.from_numpy(test_output_lstm).float()
+
+# Use the trained LSTM model to predict the states at rho = 17 and rho = 35
+modelLSTM.eval()
+with torch.no_grad():
+    predictions_lstm = modelLSTM(test_input_lstm)
+
+# Compute the Mean Squared Error of the predictions
+mse_test_lstm = loss_fn_lstm(predictions_lstm.squeeze(), test_output_lstm)
+print(f"Mean Squared Error (MSE) on the test set: {mse_test_lstm.item()}")
+```
+
+Next, the RNN model was trained:
+
+The structure of the RNN model is defined through a class named RNNModel. This model includes an RNN layer with three inputs (corresponding to the three dimensions of the Lorenz system), fifty hidden units, and batch_first set to True to accept inputs in batch size first. The RNN layer is followed by a fully connected layer, which maps the fifty-dimensional output of the RNN to three dimensions. The forward function defines how input data passes through these layers.
+
+```
+# Define the RNN model
+class RNNModel(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(RNNModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        out, _ = self.rnn(x.unsqueeze(1))
+        out = self.fc(out.squeeze(1))
+        return out
+```
+
+After the model setup, the time span, initial conditions, and rho values for the Lorenz system are established. Then, the Lorenz equations are solved for these conditions, with the results reshaped and concatenated into arrays suitable for training the RNN model.
+
+```
+# Set up time span, initial conditions, and rho values
+dt = 0.01
+T = 8
+t = np.arange(0, T+dt, dt)
+np.random.seed(123)
+x0 = -15 + 30 * np.random.random((100, 3))
+rhos = [10, 28, 40]
+
+# Solve the Lorenz equations
+nn_input = []
+nn_output = []
+
+for rho in rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    nn_input.append(x_t[:, :-1, :].reshape(-1, 3))  # reshaping the array to the form (samples, features)
+    nn_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+nn_input = np.concatenate(nn_input)
+nn_output = np.concatenate(nn_output)
+```
+
+Next, the data is normalized, split into training and validation sets, and converted into PyTorch tensors. The loss function (MSE) and the optimizer (Adam) are defined, and the model is trained using the previously defined train function.
+
+```
+# Normalize the data
+scaler_in = StandardScaler()
+scaler_out = StandardScaler()
+nn_input = scaler_in.fit_transform(nn_input)
+nn_output = scaler_out.fit_transform(nn_output)
+
+# Split the dataset into a training set and a validation set
+nn_input_train, nn_input_val, nn_output_train, nn_output_val = train_test_split(nn_input, nn_output, test_size=0.2, random_state=42)
+
+# Convert to PyTorch tensors
+nn_input_train = torch.from_numpy(nn_input_train).float()
+nn_output_train = torch.from_numpy(nn_output_train).float()
+nn_input_val = torch.from_numpy(nn_input_val).float()
+nn_output_val = torch.from_numpy(nn_output_val).float()
+
+# Create the model
+input_size = 3
+hidden_size = 50
+output_size = 3
+modelNN = RNNModel(input_size, hidden_size, output_size)
+
+# Define the loss function
+loss_fn = nn.MSELoss()
+
+# Define the optimizer
+optimizer = optim.Adam(modelNN.parameters(), lr=0.01)
+
+# Train the model
+train(modelNN, optimizer, loss_fn, nn_input_train, nn_output_train, n_epochs=100)
+```
+
+After training, the RNN model is evaluated on the validation set, and the Mean Squared Error of the predictions is computed. The model is then used to forecast the dynamics of the Lorenz system for the new rho values of 17 and 35. The Mean Squared Error of these predictions gives an estimate of the model's predictive performance under unseen conditions.
+
+```
+# Evaluate the model on the validation set
+modelNN.eval()
+with torch.no_grad():
+  predictions = modelNN(nn_input_val)
+
+# Compute the Mean Squared Error of the predictions
+mse = loss_fn(predictions, nn_output_val)
+print(f"Mean Squared Error (MSE) on the validation set: {mse.item()}")
+
+# Solve the Lorenz equations for rho = 17 and rho = 35
+test_rhos = [17, 35]
+test_input = []
+test_output = []
+
+for rho in test_rhos:
+  x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+  test_input.append(x_t[:, :-1, :].reshape(-1, 3))
+  test_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+test_input = np.concatenate(test_input)
+test_output = np.concatenate(test_output)
+
+# Normalize the test data
+test_input = scaler_in.transform(test_input)
+test_output = scaler_out.transform(test_output)
+
+# Convert to PyTorch tensors
+test_input = torch.from_numpy(test_input).float()
+test_output = torch.from_numpy(test_output).float()
+
+# Use the trained model to predict the states at rho = 17 and rho = 35
+modelNN.eval()
+with torch.no_grad():
+  predictions = modelNN(test_input)
+
+# Compute the Mean Squared Error of the predictions
+mse_test = loss_fn(predictions, test_output)
+print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
+```
+
+This process is then repeated for the ESN:
+
+```
+# Define the ESN model
+class EchoStateNetwork(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size, spectral_radius=0.9):
+        super(EchoStateNetwork, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        self.spectral_radius = spectral_radius
+
+        # Define the ESN reservoir weights (randomly initialized)
+        self.reservoir_weights = nn.Parameter(torch.randn(hidden_size, hidden_size))
+
+        # Scale the reservoir weights by the spectral radius
+        eigvals = torch.linalg.eigvals(self.reservoir_weights)
+        max_eigval = torch.max(torch.abs(eigvals))
+        self.reservoir_weights.data *= spectral_radius / max_eigval
+
+        # Define the input-to-reservoir weights (randomly initialized)
+        self.input_weights = nn.Parameter(torch.randn(hidden_size, input_size))
+
+        # Define the reservoir-to-output weights (randomly initialized)
+        self.output_weights = nn.Parameter(torch.randn(output_size, hidden_size))
+
+        # Define the activation function (tanh)
+        self.activation = nn.Tanh()
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        time_steps = x.size(1)
+
+        # Reshape input tensor
+        x = x.view(-1, self.input_size)
+
+        # Initialize the hidden state of the reservoir
+        reservoir_state = torch.zeros(batch_size, self.hidden_size)
+
+        # Iterate through time steps
+        for t in range(time_steps):
+            # Update the reservoir state
+            reservoir_state = self.activation(torch.mm(x[t].unsqueeze(0), self.input_weights.t()) + torch.mm(reservoir_state, self.reservoir_weights.t()))
+
+        # Compute the output
+        output = torch.mm(reservoir_state, self.output_weights.t())
+
+        return output
+```
+
+The structure of the ESN model is defined through a class named EchoStateNetwork. This model includes a reservoir with 50 neurons. The reservoir weights are scaled by a spectral radius, which controls the dynamical richness of the reservoir.
+
+The input weights project the three-dimensional input to the reservoir, while the output weights map the reservoir state back to the three-dimensional output. The activation function is the hyperbolic tangent (tanh).
+
+During the forward pass, the model iterates over each time step, updating the reservoir state with the current input and the previous reservoir state. The final output is computed from the last reservoir state.
+
+```
+# Set up time span, initial conditions, and rho values
+dt = 0.01
+T = 8
+t = np.arange(0, T+dt, dt)
+np.random.seed(123)
+x0 = -15 + 30 * np.random.random((100, 3))
+rhos = [10, 28, 40]
+
+# Solve the Lorenz equations
+nn_input = []
+nn_output = []
+
+for rho in rhos:
+    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+    nn_input.append(x_t[:, :-1, :].reshape(-1, 3))  # reshaping the array to the form (samples, features)
+    nn_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+nn_input = np.concatenate(nn_input)
+nn_output = np.concatenate(nn_output)
+```
+
+After the model setup, the time span, initial conditions, and rho values for the Lorenz system are established. Then, the Lorenz equations are solved for these conditions, and the results are reshaped and concatenated into arrays suitable for training the ESN model.
+
+```
+# Normalize the data
+scaler_in = StandardScaler()
+scaler_out = StandardScaler()
+nn_input = scaler_in.fit_transform(nn_input)
+nn_output = scaler_out.fit_transform(nn_output)
+
+# Split the dataset into a training set and a validation set
+nn_input_train, nn_input_val, nn_output_train, nn_output_val = train_test_split(nn_input, nn_output, test_size=0.2, random_state=42)
+
+# Convert to PyTorch tensors
+nn_input_train = torch.from_numpy(nn_input_train).float()
+nn_output_train = torch.from_numpy(nn_output_train).float()
+nn_input_val = torch.from_numpy(nn_input_val).float()
+nn_output_val = torch.from_numpy(nn_output_val).float()
+
+# Create the ESN model
+input_size = 3
+hidden_size = 50
+output_size = 3
+modelESN = EchoStateNetwork(input_size, hidden_size, output_size)
+
+# Define the loss function
+loss_fn = nn.MSELoss()
+
+# Define the optimizer
+optimizer = optim.Adam(modelESN.parameters(), lr=0.01)
+
+# Enable anomaly detection
+autograd.set_detect_anomaly(True)
+
+# Train the model
+train(modelESN, optimizer, loss_fn, nn_input_train, nn_output_train, n_epochs=100)
+```
+The data is normalized, split into training and validation sets, and converted into PyTorch tensors. The loss function (MSE) and the optimizer (Adam) are defined, and the model is trained using the previously defined train function.
+
+```
+# Evaluate the model on the validation set
+modelESN.eval()
+with torch.no_grad():
+  predictions = modelESN(nn_input_val)
+
+# Compute the Mean Squared Error of the predictions
+mse = loss_fn(predictions, nn_output_val)
+print(f"Mean Squared Error (MSE) on the validation set: {mse.item()}")
+
+# Solve the Lorenz equations for rho = 17 and rho = 35
+test_rhos = [17, 35]
+test_input = []
+test_output = []
+
+for rho in test_rhos:
+  x_t = np.asarray([integrate.odeint(lorenz_deriv, x0_j, t, args=(10, 8/3, rho)) for x0_j in x0])
+  test_input.append(x_t[:, :-1, :].reshape(-1, 3))
+  test_output.append(x_t[:, 1:, :].reshape(-1, 3))
+
+test_input = np.concatenate(test_input)
+test_output = np.concatenate(test_output)
+
+# Normalize the test data
+test_input = scaler_in.transform(test_input)
+test_output = scaler_out.transform(test_output)
+
+# Convert to PyTorch tensors
+test_input = torch.from_numpy(test_input).float()
+test_output = torch.from_numpy(test_output).float()
+
+# Use the trained model to predict the states at rho = 17 and rho = 35
+modelESN.eval()
+with torch.no_grad():
+  predictions = modelESN(test_input)
+
+# Compute the Mean Squared Error of the predictions
+mse_test = loss_fn(predictions, test_output)
+print(f"Mean Squared Error (MSE) on the test set: {mse_test.item()}")
+```
+
+After training, the ESN model is evaluated on the validation set, and the Mean Squared Error of the predictions is computed. The model is then used to forecast the dynamics of the Lorenz system for the new rho values of 17 and 35. The Mean Squared Error of these predictions gives an estimate of the model's predictive performance under unseen conditions.
