@@ -37,7 +37,7 @@ In this work, we first provide a detailed explanation of the Lorenz system and t
 Then we present our findings, including a comparison of the performance of the different models in handling this task. We conclude with a discussion of the implications of our results and potential future research directions. The ultimate goal is to provide a clear understanding of how different neural network architectures can be used to predict the future states of complex, nonlinear systems like the Lorenz equations.
 
 ###  Sec. II. Theoretical Background
-# The Lorenz Equations
+#### *The Lorenz Equations*
 
 The Lorenz system is a set of three differential equations originally introduced by Edward Lorenz in 1963. They are used to model atmospheric convection and are often cited as a prime example of how complex, chaotic behavior can arise from non-linear dynamical equations. Here are the equations:
 
@@ -46,7 +46,7 @@ dy/dt = x(ρ - z) - y
 dz/dt = xy - βz
 The system is characterized by three parameters: σ (Prandtl number), ρ (Rayleigh number), and β. When ρ exceeds a critical value (approximately 24.74), the system begins to exhibit chaotic behavior. This means that while the system is deterministic, slight changes to initial conditions can result in vastly different outcomes, making long-term prediction extremely challenging. This sensitivity to initial conditions is known as the butterfly effect.
 
-# Neural Networks
+#### *Neural Networks*
 
 **Feed-Forward Neural Networks (FFNNs)**: FFNNs are the simplest type of artificial neural network. In this type of network, the information moves in only one direction—forward—from the input layer, through the hidden layers, to the output layer. There are no cycles or loops in the network. Although FFNNs can approximate any function, they are not particularly well-suited for time series prediction or for any type of sequence recognition, due to lack of temporal dynamics processing.
 
@@ -56,7 +56,7 @@ The system is characterized by three parameters: σ (Prandtl number), ρ (Raylei
 
 **Echo State Networks (ESNs)**: ESNs are a type of recurrent neural network with a sparsely connected hidden layer (with typically 1% connectivity). The connectivity and weights of hidden neurons are generated randomly and remain unchanged during training. Only the weights of output neurons are updated. This leads to faster and more efficient training.
 
-# Implications of Using Neural Networks for Forecasting
+#### *Implications of Using Neural Networks for Forecasting*
 
 The ability to forecast accurately from nonlinear dynamical systems, like the Lorenz system, is of great interest in many fields, including meteorology, economics, and engineering. Traditional methods often rely on explicit numerical methods which can become unstable or inaccurate when facing chaotic systems or when step sizes are not appropriately small.
 
